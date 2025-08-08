@@ -1,0 +1,10 @@
+* text=auto
+
+# Normalize common text files
+*.py text eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf
+*.md text diff=markdown
+*.yml text
+*.yaml text
+*.json text

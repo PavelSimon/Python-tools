@@ -162,4 +162,26 @@ For issues and questions:
 
 ---
 
+# Tools
+
+Minimal project scaffold.
+
+## Development
+
+- Install tooling: `pip install -U pip && pip install black isort ruff pytest`
+- Enable pre-commit: `pip install pre-commit && pre-commit install`
+
+## Testing
+
+- Run tests: `pytest`
+
+## Linting & Formatting
+
+- Format: `black . && isort .`
+- Lint: `ruff check .`
+
+## Environment
+
+- Copy `.env.example` to `.env` and set real values.
+
 **Happy Coding!**
