@@ -1,0 +1,14 @@
+[project]
+name = "tools"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "apscheduler>=3.11.0",
+    "flask>=3.1.1",
+    "keyboard>=0.13.5",
+    "pathlib>=1.0.1",
+    "psutil>=7.0.0",
+    "pyperclip>=1.9.0",
+]
