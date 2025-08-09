@@ -7,17 +7,17 @@ class CustomHTTPRequestHandler(SimpleHTTPRequestHandler):
         import urllib.request, urllib.parse, urllib.error
         import html
         import io
-        
+
         try:
-            list = os.listdir(path)
+            entries = os.listdir(path)
         except OSError:
             self.send_error(404, "No permission to list directory")
             return None
-        list.sort(key=lambda a: a.lower())
-        
+        entries.sort(key=lambda a: a.lower())
+
         # Add parent directory link if not at root
         if os.path.dirname(path) != path:
-            list.insert(0, '..')
+            entries.insert(0, '..')
         
         r = []
         displaypath = html.escape(urllib.parse.unquote(self.path))
@@ -32,7 +32,7 @@ class CustomHTTPRequestHandler(SimpleHTTPRequestHandler):
         r.append('<body>\n<h1>%s</h1>' % title)
         r.append('<hr>\n<ul>')
         
-        for name in list:
+        for name in entries:
             fullname = os.path.join(path, name)
             displayname = linkname = name
             if name == '..':
@@ -67,7 +67,13 @@ def serve_folder(folder, port=8000):
         server.shutdown()
         sys.exit(0)
 
-folder = input("Enter folder path to serve (or press Enter for current folder): ")
-if not folder:
-    folder = os.getcwd()
-serve_folder(folder)
+
+def main():
+    folder = input("Enter folder path to serve (or press Enter for current folder): ")
+    if not folder:
+        folder = os.getcwd()
+    serve_folder(folder)
+
+
+if __name__ == "__main__":
+    main()
