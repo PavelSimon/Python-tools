@@ -1,7 +1,11 @@
-from flask import Flask, render_template_string, request, redirect, url_for, flash
-import subprocess
 import os
-from pathlib import Path
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+
+from flask import Flask, flash, redirect, render_template_string, url_for
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'
@@ -80,14 +84,55 @@ def run_script(filepath):
         # Get the directory containing the file to run the script from there
         script_dir = os.path.dirname(full_path)
         script_name = os.path.basename(full_path)
-        
-        # Open terminal and run the Python file with uv
-        if os.name == 'nt':  # Windows
-            subprocess.Popen(['cmd', '/c', 'start', 'cmd', '/k', f'cd /d "{script_dir}" && uv run {script_name}'], shell=True)
-        else:  # Linux/Mac
-            subprocess.Popen(['gnome-terminal', '--', 'bash', '-c', f'cd "{script_dir}" && uv run {script_name}; read -p "Press Enter to continue..."'])
-        
-        flash(f"Opened terminal to run {filepath} with uv", "success")
+
+        if not re.fullmatch(r"[\w.-]+", script_name):
+            flash("Invalid script name", "error")
+            return redirect(url_for("file_list"))
+
+        if os.name == "nt":  # Windows
+            subprocess.Popen(
+                [
+                    "cmd",
+                    "/c",
+                    "start",
+                    "cmd",
+                    "/k",
+                    f'cd /d "{script_dir}" && uv run {script_name}',
+                ]
+            )
+            flash(f"Opened terminal to run {filepath} with uv", "success")
+        else:
+            terminals = [
+                "x-terminal-emulator",
+                "gnome-terminal",
+                "konsole",
+                "xfce4-terminal",
+                "xterm",
+            ]
+            terminal = next((t for t in terminals if shutil.which(t)), None)
+            command = (
+                f"uv run {shlex.quote(script_name)}; read -p 'Press Enter to continue...'"
+            )
+            if terminal:
+                if terminal == "gnome-terminal":
+                    term_cmd = [terminal, "--", "bash", "-lc", command]
+                else:
+                    term_cmd = [terminal, "-e", "bash", "-lc", command]
+                subprocess.Popen(term_cmd, cwd=script_dir)
+                flash(f"Opened terminal to run {filepath} with uv", "success")
+            elif sys.platform == "darwin" and shutil.which("osascript"):
+                osa_cmd = (
+                    'tell app "Terminal" to do script '
+                    f'"cd {shlex.quote(script_dir)} && uv run {shlex.quote(script_name)}"'
+                )
+                subprocess.Popen(["osascript", "-e", osa_cmd])
+                flash(f"Opened terminal to run {filepath} with uv", "success")
+            else:
+                subprocess.Popen(["uv", "run", script_name], cwd=script_dir)
+                flash(
+                    f"No terminal emulator found. Running {filepath} directly with uv",
+                    "warning",
+                )
             
     except Exception as e:
         flash(f"Error opening terminal for {filepath}: {e}", "error")
