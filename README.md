@@ -83,13 +83,6 @@ System battery monitoring and notification tool.
 
 WiFi network management and monitoring utility.
 
----
-
-### Main - Entry Point
-**File**: `main.py`
-
-Main entry point and tool launcher.
-
 ## Development
 
 ### Project Structure
@@ -97,15 +90,14 @@ Main entry point and tool launcher.
 tools/
 ├── README.md           # This file
 ├── pyproject.toml      # Project configuration
-├── uv.lock            # Lock file
+├── uv.lock             # Lock file
 ├── .gitignore          # Git ignore rules
 ├── flasky.py           # Web file manager
 ├── clip.py             # Clipboard utility
 ├── webfolder.py        # Web directory server
 ├── cron.py             # Task scheduler
 ├── bat.py              # Battery monitor
-├── wifi.py             # WiFi manager
-└── main.py             # Main entry point
+└── wifi.py             # WiFi manager
 ```
 
 ### Running Individual Tools
