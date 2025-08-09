@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ filename }} - File Viewer</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background-color: #f8f9fa; 
+        }
+        .header { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 5px; 
+            margin-bottom: 20px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+        }
+        .breadcrumb { 
+            margin-bottom: 15px; 
+            padding: 10px; 
+            background: #e9ecef; 
+            border-radius: 3px; 
+        }
+        .breadcrumb a { 
+            color: #007bff; 
+            text-decoration: none; 
+            margin-right: 5px; 
+        }
+        .breadcrumb a:hover { text-decoration: underline; }
+        .back-btn { 
+            background: #6c757d; 
+            color: white; 
+            border: none; 
+            padding: 8px 16px; 
+            border-radius: 3px; 
+            cursor: pointer; 
+            text-decoration: none; 
+            display: inline-block; 
+            margin-right: 10px; 
+        }
+        .back-btn:hover { background: #545b62; }
+        .file-content { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 5px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+            overflow: auto; 
+        }
+        .code-content { 
+            font-family: 'Courier New', monospace; 
+            font-size: 14px; 
+            line-height: 1.4; 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 3px; 
+            border: 1px solid #dee2e6; 
+            white-space: pre-wrap; 
+            word-wrap: break-word; 
+            max-height: 80vh; 
+            overflow-y: auto; 
+        }
+        .file-info { 
+            color: #666; 
+            font-size: 14px; 
+            margin-bottom: 15px; 
+        }
+        .python-syntax { color: #0000ff; }
+        .line-numbers { 
+            display: table; 
+            width: 100%; 
+        }
+        .line { 
+            display: table-row; 
+        }
+        .line-number { 
+            display: table-cell; 
+            text-align: right; 
+            padding-right: 10px; 
+            color: #999; 
+            border-right: 1px solid #ddd; 
+            min-width: 50px; 
+            user-select: none; 
+        }
+        .line-content { 
+            display: table-cell; 
+            padding-left: 10px; 
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="breadcrumb">
+            <a href="{{ url_for('file_list') }}">🏠 Home</a>
+            {% for crumb in breadcrumbs %}
+                / <a href="{{ url_for('file_list', subpath=crumb.path) }}">{{ crumb.name }}</a>
+            {% endfor %}
+            {% if breadcrumbs %}
+                / {{ filename }}
+            {% else %}
+                / {{ filename }}
+            {% endif %}
+        </div>
+        
+        {% if subpath %}
+            <a href="{{ url_for('file_list', subpath=subpath) }}" class="back-btn">← Back to Directory</a>
+        {% else %}
+            <a href="{{ url_for('file_list') }}" class="back-btn">← Back to Directory</a>
+        {% endif %}
+        
+        <h1>📄 {{ filename }}</h1>
+        <div class="file-info">
+            File: {{ filepath }} | Size: {{ content|length }} characters
+        </div>
+    </div>
+    
+    <div class="file-content">
+        <div class="code-content line-numbers">
+            {% set lines = content.split('\n') %}
+            {% for line in lines %}
+                <div class="line">
+                    <div class="line-number">{{ loop.index }}</div>
+                    <div class="line-content">{{ line if line else ' ' }}</div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+</html>
