@@ -1,174 +1,200 @@
-from flask import Flask, render_template_string, request, redirect, url_for, flash
-import subprocess
 import os
+import subprocess
+from configparser import ConfigParser
 from pathlib import Path
 
+from flask import Flask, flash, redirect, render_template_string, url_for
+
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-here'
+
+
+def load_secret_key() -> str:
+    """Load the Flask secret key from the environment or a config file."""
+    key = os.environ.get("SECRET_KEY")
+    if key:
+        return key
+    config_file = Path("config.ini")
+    if config_file.exists():
+        parser = ConfigParser()
+        parser.read(config_file)
+        if parser.has_option("flask", "SECRET_KEY"):
+            return parser.get("flask", "SECRET_KEY")
+    return "your-secret-key-here"
+
+
+app.secret_key = load_secret_key()
+
+BASE_DIR = Path.cwd().resolve()
 
 @app.route("/")
 @app.route("/browse")
 @app.route("/browse/<path:subpath>")
-def file_list(subpath=""):
+def file_list(subpath: str = ""):
     try:
-        # Get the base directory (where the Flask app is running)
-        base_dir = os.getcwd()
-        
-        # Construct the current directory path
+        base_dir = BASE_DIR
+
+        # Construct the current directory path securely
         if subpath:
-            # Security: prevent path traversal attacks
-            if '..' in subpath or subpath.startswith('/') or ':' in subpath:
+            current_dir = (base_dir / subpath).resolve()
+            if not current_dir.is_relative_to(base_dir) or not current_dir.is_dir():
                 flash("Invalid path", "error")
-                return redirect(url_for('file_list'))
-            current_dir = os.path.join(base_dir, subpath)
+                return redirect(url_for("file_list"))
         else:
             current_dir = base_dir
-        
-        # Check if directory exists
-        if not os.path.exists(current_dir) or not os.path.isdir(current_dir):
-            flash("Directory not found", "error")
-            return redirect(url_for('file_list'))
-        
+
         files = []
-        for item in os.listdir(current_dir):
-            item_path = os.path.join(current_dir, item)
-            is_file = os.path.isfile(item_path)
-            is_python = item.endswith('.py') if is_file else False
-            files.append({
-                'name': item,
-                'is_file': is_file,
-                'is_python': is_python,
-                'size': os.path.getsize(item_path) if is_file else None
-            })
-        
+        for item in current_dir.iterdir():
+            is_file = item.is_file()
+            is_python = item.suffix == ".py" if is_file else False
+            files.append(
+                {
+                    "name": item.name,
+                    "is_file": is_file,
+                    "is_python": is_python,
+                    "size": item.stat().st_size if is_file else None,
+                }
+            )
+
         # Sort: directories first, then files
-        files.sort(key=lambda x: (x['is_file'], x['name'].lower()))
-        
+        files.sort(key=lambda x: (x["is_file"], x["name"].lower()))
+
         # Create breadcrumb navigation
         breadcrumbs = []
         if subpath:
-            parts = subpath.split(os.sep)
+            parts = subpath.split("/")
             current_path = ""
             for part in parts:
-                current_path = os.path.join(current_path, part) if current_path else part
-                breadcrumbs.append({
-                    'name': part,
-                    'path': current_path.replace(os.sep, '/')
-                })
-        
-        return render_template_string(HTML_TEMPLATE, files=files, current_dir=current_dir, 
-                                    subpath=subpath, breadcrumbs=breadcrumbs, base_dir=base_dir)
+                current_path = f"{current_path}/{part}" if current_path else part
+                breadcrumbs.append({"name": part, "path": current_path})
+
+        return render_template_string(
+            HTML_TEMPLATE,
+            files=files,
+            current_dir=str(current_dir),
+            subpath=subpath,
+            breadcrumbs=breadcrumbs,
+            base_dir=str(base_dir),
+        )
     except Exception as e:
         return f"Error listing files: {e}"
 
 @app.route("/run/<path:filepath>")
-def run_script(filepath):
+def run_script(filepath: str):
+    subpath = ""
     try:
-        # Security: only allow .py files and prevent path traversal
-        if not filepath.endswith('.py') or '..' in filepath or filepath.startswith('/') or ':' in filepath:
+        base_dir = BASE_DIR
+        full_path = (base_dir / filepath).resolve()
+        if not full_path.is_relative_to(base_dir) or full_path.suffix != ".py":
             flash("Invalid file type or path", "error")
-            return redirect(url_for('file_list'))
-        
-        # Construct full file path
-        base_dir = os.getcwd()
-        full_path = os.path.join(base_dir, filepath)
-        
-        if not os.path.exists(full_path) or not os.path.isfile(full_path):
+            return redirect(url_for("file_list"))
+
+        if not full_path.exists() or not full_path.is_file():
             flash(f"File {filepath} not found", "error")
-            return redirect(url_for('file_list'))
-        
-        # Get the directory containing the file to run the script from there
-        script_dir = os.path.dirname(full_path)
-        script_name = os.path.basename(full_path)
-        
-        # Open terminal and run the Python file with uv
-        if os.name == 'nt':  # Windows
-            subprocess.Popen(['cmd', '/c', 'start', 'cmd', '/k', f'cd /d "{script_dir}" && uv run {script_name}'], shell=True)
+            return redirect(url_for("file_list"))
+
+        script_dir = full_path.parent
+        script_name = full_path.name
+
+        if os.name == "nt":  # Windows
+            subprocess.Popen(
+                ["cmd", "/c", "start", "cmd", "/k", f'cd /d "{script_dir}" && uv run {script_name}'],
+                shell=True,
+            )
         else:  # Linux/Mac
-            subprocess.Popen(['gnome-terminal', '--', 'bash', '-c', f'cd "{script_dir}" && uv run {script_name}; read -p "Press Enter to continue..."'])
-        
+            subprocess.Popen(
+                [
+                    "gnome-terminal",
+                    "--",
+                    "bash",
+                    "-c",
+                    f'cd "{script_dir}" && uv run {script_name}; read -p "Press Enter to continue..."',
+                ]
+            )
+
         flash(f"Opened terminal to run {filepath} with uv", "success")
-            
+        subpath = (
+            script_dir.relative_to(base_dir).as_posix() if script_dir != base_dir else ""
+        )
     except Exception as e:
         flash(f"Error opening terminal for {filepath}: {e}", "error")
-    
-    # Redirect back to the current directory
-    subpath = os.path.dirname(filepath).replace(os.sep, '/') if os.path.dirname(filepath) else ""
+        subpath = Path(filepath).parent.as_posix()
+
     if subpath:
-        return redirect(url_for('file_list', subpath=subpath))
-    else:
-        return redirect(url_for('file_list'))
+        return redirect(url_for("file_list", subpath=subpath))
+    return redirect(url_for("file_list"))
 
 @app.route("/view/<path:filepath>")
-def view_file(filepath):
+def view_file(filepath: str):
     try:
-        # Security: prevent path traversal
-        if '..' in filepath or filepath.startswith('/') or ':' in filepath:
+        base_dir = BASE_DIR
+        full_path = (base_dir / filepath).resolve()
+        if not full_path.is_relative_to(base_dir):
             flash("Invalid file path", "error")
-            return redirect(url_for('file_list'))
-        
-        # Construct full file path
-        base_dir = os.getcwd()
-        full_path = os.path.join(base_dir, filepath)
-        
-        if not os.path.exists(full_path) or not os.path.isfile(full_path):
+            return redirect(url_for("file_list"))
+
+        if not full_path.exists() or not full_path.is_file():
             flash(f"File {filepath} not found", "error")
-            return redirect(url_for('file_list'))
-        
+            return redirect(url_for("file_list"))
+
         # Check if file is too large (limit to 1MB)
-        if os.path.getsize(full_path) > 1024 * 1024:
+        if full_path.stat().st_size > 1024 * 1024:
             flash("File is too large to view (max 1MB)", "error")
-            subpath = os.path.dirname(filepath).replace(os.sep, '/') if os.path.dirname(filepath) else ""
+            subpath = (
+                full_path.parent.relative_to(base_dir).as_posix()
+                if full_path.parent != base_dir
+                else ""
+            )
             if subpath:
-                return redirect(url_for('file_list', subpath=subpath))
-            else:
-                return redirect(url_for('file_list'))
-        
+                return redirect(url_for("file_list", subpath=subpath))
+            return redirect(url_for("file_list"))
+
         # Try to read the file content
         try:
-            with open(full_path, 'r', encoding='utf-8') as f:
-                content = f.read()
+            content = full_path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
-            # Try with different encodings
             try:
-                with open(full_path, 'r', encoding='latin1') as f:
-                    content = f.read()
-            except:
+                content = full_path.read_text(encoding="latin1")
+            except Exception:
                 flash("Cannot display binary file", "error")
-                subpath = os.path.dirname(filepath).replace(os.sep, '/') if os.path.dirname(filepath) else ""
+                subpath = (
+                    full_path.parent.relative_to(base_dir).as_posix()
+                    if full_path.parent != base_dir
+                    else ""
+                )
                 if subpath:
-                    return redirect(url_for('file_list', subpath=subpath))
-                else:
-                    return redirect(url_for('file_list'))
-        
+                    return redirect(url_for("file_list", subpath=subpath))
+                return redirect(url_for("file_list"))
+
         # Determine file type for syntax highlighting
-        file_ext = os.path.splitext(filepath)[1].lower()
-        language = 'python' if file_ext == '.py' else 'text'
-        
+        language = "python" if full_path.suffix.lower() == ".py" else "text"
+
         # Create breadcrumb for the file location
-        subpath = os.path.dirname(filepath).replace(os.sep, '/') if os.path.dirname(filepath) else ""
+        subpath = (
+            full_path.parent.relative_to(base_dir).as_posix()
+            if full_path.parent != base_dir
+            else ""
+        )
         breadcrumbs = []
         if subpath:
-            parts = subpath.split('/')
+            parts = subpath.split("/")
             current_path = ""
             for part in parts:
-                current_path = current_path + '/' + part if current_path else part
-                breadcrumbs.append({
-                    'name': part,
-                    'path': current_path
-                })
-        
-        return render_template_string(FILE_VIEW_TEMPLATE, 
-                                    content=content, 
-                                    filepath=filepath,
-                                    filename=os.path.basename(filepath),
-                                    language=language,
-                                    subpath=subpath,
-                                    breadcrumbs=breadcrumbs)
-        
+                current_path = f"{current_path}/{part}" if current_path else part
+                breadcrumbs.append({"name": part, "path": current_path})
+
+        return render_template_string(
+            FILE_VIEW_TEMPLATE,
+            content=content,
+            filepath=filepath,
+            filename=full_path.name,
+            language=language,
+            subpath=subpath,
+            breadcrumbs=breadcrumbs,
+        )
+
     except Exception as e:
         flash(f"Error viewing file {filepath}: {e}", "error")
-        return redirect(url_for('file_list'))
+        return redirect(url_for("file_list"))
 
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
