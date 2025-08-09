@@ -1,6 +1,5 @@
 from apscheduler.schedulers.blocking import BlockingScheduler
 import logging
-import sys
 
 # Setup logging
 logging.basicConfig(
@@ -20,16 +19,21 @@ def run_all_tasks():
     except Exception as e:
         logger.error(f"Error running automation tasks: {e}")
 
-# Setup scheduler
-scheduler = BlockingScheduler()
-scheduler.add_job(run_all_tasks, "interval", days=1)
+# Setup scheduler and run tasks
+def main():
+    scheduler = BlockingScheduler()
+    scheduler.add_job(run_all_tasks, "interval", days=1)
 
-logger.info("Starting daily automation scheduler...")
-logger.info("Press Ctrl+C to stop")
+    logger.info("Starting daily automation scheduler...")
+    logger.info("Press Ctrl+C to stop")
 
-try:
-    scheduler.start()
-except (KeyboardInterrupt, SystemExit):
-    logger.info("Shutting down scheduler...")
-    scheduler.shutdown()
-    logger.info("Scheduler stopped")
+    try:
+        scheduler.start()
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("Shutting down scheduler...")
+        scheduler.shutdown()
+        logger.info("Scheduler stopped")
+
+
+if __name__ == "__main__":
+    main()
