@@ -3,7 +3,7 @@
 A collection of useful Python utilities and tools for development and system administration.
 Coppied from web changed by cladue code.
 
-Use then on your risk, it was fun to do it.
+Use then on your risk (they are some quite dangerous), it was fun to do it.
 
 ## Quick Start
 
