@@ -3,12 +3,11 @@ name = "tools"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 dependencies = [
     "apscheduler>=3.11.0",
     "flask>=3.1.1",
     "keyboard>=0.13.5",
-    "pathlib>=1.0.1",
     "psutil>=7.0.0",
     "pyperclip>=1.9.0",
 ]
@@ -29,12 +28,12 @@ exclude = [
 [tool.isort]
 profile = "black"
 line_length = 88
-src_paths = ["src", "tests"]
+src_paths = ["src"]
 
 [tool.ruff]
 line-length = 88
 target-version = "py311"
-src = ["src", "tests"]
+src = ["src"]
 extend-exclude = ["build", "dist", ".venv", "venv"]
 
 [tool.ruff.lint]
